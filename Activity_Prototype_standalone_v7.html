@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cardinal Expense — Activity Step (standalone)</title>
+<style>
+  /* ── Reset ── */
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
+
+  /* ── Stanford Cardinal palette (parity with v26) ── */
+  :root {
+    --cardinal:        #8C1515;
+    --cardinal-dark:   #820000;
+    --cardinal-light:  #F9EAEA;
+    --cardinal-border: #E8BFBF;
+    --su-black:        #2E2D29;
+    --su-dark-grey:    #4D4F53;
+    --su-mid-grey:     #767674;
+    --su-light-grey:   #D4D1CB;
+    --su-parchment:    #FAF7F2;
+    --su-sand:         #F4F0E8;
+    --su-blue:         #006CB8;
+    --su-blue-light:   #E6F0F8;
+    --su-green:        #007855;
+    --su-gold:         #B26F16;
+    --su-gold-light:   #FDF3E3;
+  }
+
+  html, body { height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--su-sand);
+    color:var(--su-black);
+    min-height:100vh;
+    padding:24px 16px 48px;
+  }
+
+  /* ── Page shell ── */
+  .page {
+    max-width:780px;
+    margin:0 auto;
+  }
+  .page-header {
+    background:var(--cardinal);
+    color:#fff;
+    border-radius:12px 12px 0 0;
+    padding:14px 22px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .page-header h1 {
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+  .page-header .sub {
+    font-size:11px;
+    font-weight:500;
+    opacity:.85;
+    margin-left:auto;
+  }
+  .page-body {
+    background:var(--su-parchment);
+    border:1px solid var(--su-light-grey);
+    border-top:none;
+    border-radius:0 0 12px 12px;
+    padding:20px 22px 28px;
+  }
+
+  /* ── Role-driven field visibility ──
+     In production, Oracle Authority sets body[data-role] (e.g. "traveler" or "admin").
+     The Dept Admin Details block is shown only when data-role="admin". */
+  body:not([data-role="admin"]) #act-admin-fields { display:none; }
+
+  /* ── Activity sections ── */
+  .act-section {
+    background:#fff;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:12px;
+    padding:18px 20px;
+    margin-bottom:14px;
+  }
+  .act-section-label {
+    font-size:11px;
+    font-weight:800;
+    color:var(--cardinal);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .act-section-label::before {
+    content:'';
+    width:4px;
+    height:14px;
+    background:var(--cardinal);
+    border-radius:2px;
+  }
+
+  /* Chips */
+  .act-chips {
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:4px;
+  }
+  .act-chip {
+    padding:8px 14px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:24px;
+    background:#fff;
+    font-size:13px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+  }
+  .act-chip:hover {
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+  }
+  .act-chip.active {
+    background:var(--cardinal-light);
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+  }
+  .act-chip svg { flex-shrink:0; }
+
+  /* Labels + inputs */
+  .act-label {
+    font-size:11px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .act-req { color:#c62828; }
+  .act-input, .act-select {
+    width:100%;
+    padding:9px 12px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:8px;
+    background:var(--su-parchment);
+    color:var(--su-black);
+    font-size:13px;
+    font-family:inherit;
+    transition:border-color .15s,box-shadow .15s;
+    box-sizing:border-box;
+  }
+  .act-input:focus, .act-select:focus {
+    outline:none;
+    border-color:var(--cardinal);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(140,21,21,.07);
+  }
+  .act-grid-2 {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+
+  /* Traveler chips */
+  .act-traveler-chip {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 6px 5px 11px;
+    background:#fdf0f0;
+    border:1px solid var(--cardinal-border);
+    border-radius:18px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--cardinal);
+  }
+  .act-traveler-x {
+    background:none;
+    border:none;
+    color:var(--cardinal);
+    cursor:pointer;
+    padding:0 4px;
+    font-size:15px;
+    line-height:1;
+    font-family:inherit;
+  }
+  .act-traveler-add {
+    padding:5px 12px;
+    background:#fff;
+    border:1.5px dashed var(--cardinal);
+    border-radius:18px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--cardinal);
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .act-traveler-add:hover { background:#fdf0f0; }
+
+  /* PTA split rows */
+  .act-pta-row {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .act-pta-pct {
+    max-width:74px;
+    padding:9px 8px;
+    text-align:center;
+  }
+  .act-pta-remove {
+    background:none;
+    border:none;
+    color:var(--su-mid-grey);
+    cursor:pointer;
+    font-size:18px;
+    padding:4px 8px;
+    line-height:1;
+    font-family:inherit;
+  }
+  .act-pta-remove:hover { color:#c62828; }
+
+  .act-help {
+    font-size:11px;
+    color:var(--su-mid-grey);
+    margin-top:6px;
+    line-height:1.45;
+  }
+
+  /* Bottom step nav */
+  .step-nav {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:24px;
+    padding-top:18px;
+    border-top:1px solid #E8E6E0;
+  }
+  .btn-secondary {
+    padding:9px 18px;
+    background:#fff;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:9px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+  }
+  .btn-secondary:hover {
+    background:var(--su-sand);
+    border-color:var(--su-mid-grey);
+  }
+  .btn-primary {
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:9px 22px;
+    background:var(--cardinal);
+    border:1.5px solid var(--cardinal);
+    border-radius:9px;
+    font-size:13px;
+    font-weight:700;
+    color:#fff;
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+  }
+  .btn-primary:hover { background:var(--cardinal-dark); }
+
+  /* Activity summary card (shown after Next) */
+  #act-summary {
+    display:none;
+    margin-top:16px;
+    background:#fff;
+    border:1.5px solid var(--cardinal-border);
+    border-radius:12px;
+    padding:18px 20px;
+  }
+  #act-summary h3 {
+    font-size:14px;
+    font-weight:700;
+    color:var(--cardinal);
+    margin-bottom:10px;
+  }
+  #act-summary .row {
+    display:grid;
+    grid-template-columns:140px 1fr;
+    gap:6px 14px;
+    padding:6px 0;
+    border-bottom:1px solid #F4F0E8;
+    font-size:12.5px;
+  }
+  #act-summary .row:last-child { border-bottom:none; }
+  #act-summary .lbl {
+    font-size:11px;
+    color:var(--su-mid-grey);
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  #act-summary .val { color:var(--su-black); }
+
+  /* ══════════════════════════════════════════════════════════ */
+  /* ══ Activity Date(s) v5 — selection pill + chips + calendar ══ */
+  /* ══════════════════════════════════════════════════════════ */
+
+  /* Selection pill (always visible — shows current selection at a glance) */
+  .cal-pill {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px 14px;
+    background:var(--cardinal-light);
+    border:1.5px solid var(--cardinal-border);
+    border-radius:10px;
+    margin-bottom:12px;
+    transition:all .2s;
+  }
+  .cal-pill.empty {
+    background:var(--su-sand);
+    border-color:var(--su-light-grey);
+    border-style:dashed;
+  }
+  .cal-pill-icon {
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    color:var(--cardinal);
+  }
+  .cal-pill.empty .cal-pill-icon { color:var(--su-mid-grey); }
+  .cal-pill-content { flex:1; min-width:0; }
+  .cal-pill-primary {
+    font-size:14px;
+    font-weight:700;
+    color:var(--su-black);
+    line-height:1.25;
+  }
+  .cal-pill.empty .cal-pill-primary {
+    color:var(--su-mid-grey);
+    font-weight:600;
+  }
+  .cal-pill-secondary {
+    font-size:11.5px;
+    color:var(--su-mid-grey);
+    margin-top:2px;
+    font-weight:500;
+  }
+  .cal-pill-clear {
+    border:none;
+    background:transparent;
+    color:var(--cardinal);
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+    padding:5px 10px;
+    border-radius:6px;
+    transition:background .15s;
+  }
+  .cal-pill-clear:hover { background:rgba(140,21,21,.08); }
+  .cal-pill.empty .cal-pill-clear { display:none; }
+
+  /* Quick preset chips */
+  .cal-presets {
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+  }
+  .cal-preset {
+    padding:6px 12px;
+    background:#fff;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:16px;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+  }
+  .cal-preset:hover {
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+    background:#fdf0f0;
+  }
+  .cal-preset.active {
+    background:var(--cardinal-light);
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+  }
+
+  /* ── Inputs row (type) — type-first since v7 (calendar widget removed) ── */
+  .cal-inputs {
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .cal-input-group {
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    flex:1 1 130px;
+    min-width:130px;
+  }
+  .cal-input-label {
+    font-size:10px;
+    font-weight:700;
+    color:var(--su-mid-grey);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  .cal-input {
+    padding:7px 10px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:7px;
+    background:var(--su-parchment);
+    color:var(--su-black);
+    font-size:12.5px;
+    font-family:inherit;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .cal-input:focus {
+    outline:none;
+    border-color:var(--cardinal);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(140,21,21,.07);
+  }
+  .cal-input:invalid { border-color:#c62828; }
+
+  /* Mode toggle (subtle — sits under the inputs) */
+  .cal-mode {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+    font-size:11px;
+    color:var(--su-mid-grey);
+  }
+  .cal-mode-label { font-weight:600; }
+  .cal-mode-group { display:inline-flex; gap:0; }
+  .cal-mode-btn {
+    padding:4px 10px;
+    border:1px solid var(--su-light-grey);
+    background:#fff;
+    font-size:11px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+  }
+  .cal-mode-btn:first-child { border-radius:6px 0 0 6px; }
+  .cal-mode-btn:last-child { border-radius:0 6px 6px 0; margin-left:-1px; }
+  .cal-mode-btn:hover { color:var(--cardinal); border-color:var(--cardinal); position:relative; z-index:1; }
+  .cal-mode-btn.active {
+    background:var(--cardinal);
+    color:#fff;
+    border-color:var(--cardinal);
+    position:relative;
+    z-index:1;
+  }
+</style>
+</head>
+<body data-role="traveler">
+
+<div class="page">
+
+  <div class="page-header">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="2" y="3" width="14" height="13" rx="1.5"/><line x1="2" y1="7" x2="16" y2="7"/><line x1="6" y1="1.5" x2="6" y2="5"/><line x1="12" y1="1.5" x2="12" y2="5"/></svg>
+    <h1>Activity — New Expense Report</h1>
+    <span class="sub">Standalone preview · v1</span>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Note: in production Oracle Authority sets body[data-role]. For prototype previews,
+         append ?role=admin to the URL to see the Dept Admin variant of this form. -->
+
+    <!-- ① Activity Details (combined: Name + Payment Card + Date(s)) -->
+    <div class="act-section">
+      <div class="act-section-label">① Activity Details</div>
+
+      <!-- Activity Name -->
+      <div style="margin-bottom:18px;">
+        <div class="act-label">Activity Name <span class="act-req">*</span></div>
+        <input type="text" id="act-name" class="act-input" placeholder="e.g. OAUG Conference 2026"/>
+        <div class="act-help">Appears on the report and on every expense rolled up under this Activity.</div>
+      </div>
+
+      <!-- Subtle divider -->
+      <div style="height:1px;background:#F4F0E8;margin:0 -20px 18px;"></div>
+
+      <!-- Type of Payment Card -->
+      <div style="margin-bottom:18px;">
+        <div class="act-label">Type of Payment Card <span class="act-req">*</span></div>
+        <div class="act-chips" id="act-fund-chips" role="radiogroup" aria-label="Type of payment card">
+          <button type="button" class="act-chip active" data-val="TCard" onclick="actSetFund('TCard')" role="radio" aria-checked="true">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="13" height="13"><rect x="1" y="3" width="12" height="9" rx="1.5"/><line x1="1" y1="6" x2="13" y2="6"/></svg>
+            TCard
+          </button>
+          <button type="button" class="act-chip" data-val="Personal Funds" onclick="actSetFund('Personal Funds')" role="radio" aria-checked="false">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="13" height="13"><circle cx="7" cy="7" r="6"/><path d="M5 7l1.5 1.5L9 6"/></svg>
+            Personal Funds
+          </button>
+          <button type="button" class="act-chip" data-val="PCard" onclick="actSetFund('PCard')" role="radio" aria-checked="false">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="13" height="13"><rect x="1" y="3" width="12" height="9" rx="1.5"/><circle cx="4" cy="9" r="1"/><line x1="7" y1="9" x2="11" y2="9"/></svg>
+            PCard
+          </button>
+        </div>
+        <div class="act-help">TCard = pre-paid travel card · Personal Funds = out-of-pocket, reimbursed later · PCard = department purchasing card.</div>
+      </div>
+
+      <!-- Subtle divider -->
+      <div style="height:1px;background:#F4F0E8;margin:0 -20px 18px;"></div>
+
+      <!-- Activity Date(s) -->
+      <div>
+        <div class="act-label">Activity Date(s) <span class="act-req">*</span></div>
+
+        <!-- Selection pill — always visible -->
+        <div class="cal-pill empty" id="cal-pill">
+          <div class="cal-pill-icon">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="17" height="17"><rect x="2" y="3.5" width="14" height="12" rx="1.5"/><line x1="2" y1="7" x2="16" y2="7"/><line x1="6" y1="1.5" x2="6" y2="5"/><line x1="12" y1="1.5" x2="12" y2="5"/></svg>
+          </div>
+          <div class="cal-pill-content">
+            <div class="cal-pill-primary" id="cal-pill-primary">Select a date</div>
+            <div class="cal-pill-secondary" id="cal-pill-secondary">Pick from a preset below, or click a day on the calendar</div>
+          </div>
+          <button type="button" class="cal-pill-clear" id="cal-pill-clear" onclick="calClearSelection()">Clear</button>
+        </div>
+
+        <!-- Quick preset chips -->
+        <div class="cal-presets" role="group" aria-label="Quick date presets">
+          <button type="button" class="cal-preset" onclick="calApplyPreset('today')">Today</button>
+          <button type="button" class="cal-preset" onclick="calApplyPreset('tomorrow')">Tomorrow</button>
+          <button type="button" class="cal-preset" onclick="calApplyPreset('weekend')">This weekend</button>
+          <button type="button" class="cal-preset" onclick="calApplyPreset('nextWeek')">Next week</button>
+          <button type="button" class="cal-preset" onclick="calApplyPreset('thisMonth')">This month</button>
+        </div>
+
+        <!-- Type inputs (v6) — users can type directly here -->
+        <div class="cal-inputs">
+          <div class="cal-input-group" id="cal-input-start-wrap">
+            <label class="cal-input-label" id="cal-input-start-label" for="cal-input-start">Date</label>
+            <input type="date" class="cal-input" id="cal-input-start" onchange="calOnInputChange('start')" aria-label="Activity date"/>
+          </div>
+          <div class="cal-input-group" id="cal-input-end-wrap" style="display:none;">
+            <label class="cal-input-label" for="cal-input-end">End</label>
+            <input type="date" class="cal-input" id="cal-input-end" onchange="calOnInputChange('end')" aria-label="End date"/>
+          </div>
+        </div>
+
+        <!-- Mode toggle (subtle, under inputs) -->
+        <div class="cal-mode" id="act-date-mode-toggle" role="radiogroup" aria-label="Date mode">
+          <span class="cal-mode-label">Mode:</span>
+          <div class="cal-mode-group">
+            <button type="button" class="cal-mode-btn active" data-mode="single" onclick="actSetDateMode('single')" role="radio" aria-checked="true">Single day</button>
+            <button type="button" class="cal-mode-btn" data-mode="range" onclick="actSetDateMode('range')" role="radio" aria-checked="false">Date range</button>
+          </div>
+        </div>
+
+        <!-- Hidden inputs preserve the IDs the rest of the form / serialization expects -->
+        <input type="hidden" id="act-date-single"/>
+        <input type="hidden" id="act-date-start"/>
+        <input type="hidden" id="act-date-end"/>
+      </div>
+    </div>
+
+    <!-- ② People Involved -->
+    <div class="act-section" id="act-travelers-section">
+      <div class="act-section-label" id="act-travelers-title">② People Involved</div>
+      <div id="act-travelers-list" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;min-height:34px;">
+        <button type="button" class="act-traveler-add" id="act-traveler-add-btn" onclick="actOpenTravelerPicker()">+ Add person</button>
+      </div>
+      <div class="act-help">Anyone whose expenses will roll up under this Activity. The active user is added by default.</div>
+      <div id="act-traveler-picker" style="display:none;margin-top:12px;padding:12px;border:1.5px solid var(--su-light-grey);border-radius:10px;background:var(--su-parchment);">
+        <input type="text" class="act-input" id="act-traveler-search" placeholder="Search by name or SUNet…" oninput="actFilterTravelers()" style="margin-bottom:8px;"/>
+        <div id="act-traveler-options" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+      </div>
+    </div>
+
+    <!-- ④ Default PTA -->
+    <div class="act-section">
+      <div class="act-section-label">③ Default PTA <span style="margin-left:6px;font-weight:600;color:var(--su-mid-grey);font-size:10px;text-transform:none;letter-spacing:0;">(Project-Task-Award)</span></div>
+      <div id="act-pta-list">
+        <div class="act-pta-row">
+          <input type="text" class="act-input act-pta-input" placeholder="e.g. 1139719-1-AABNP"/>
+          <input type="number" class="act-input act-pta-pct" value="100" min="0" max="100" oninput="actUpdatePtaTotal()"/>
+          <span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>
+        </div>
+      </div>
+      <button type="button" onclick="actAddPta()" style="padding:7px 14px;background:#fff;border:1.5px solid var(--cardinal);color:var(--cardinal);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="11" height="11"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+        Add another PTA (split allocation)
+      </button>
+      <div class="act-help" id="act-pta-total-msg">Total: 100%</div>
+    </div>
+
+    <!-- ⑤ Dept Admin extras -->
+    <div id="act-admin-fields">
+      <div class="act-section" style="background:#fbfafd;border-color:#cfd9ec;">
+        <div class="act-section-label" style="color:var(--su-blue);">④ Dept Admin Details
+          <span style="margin-left:6px;font-weight:600;color:var(--su-mid-grey);font-size:10px;text-transform:none;letter-spacing:0;">(visible to Dept Admins only)</span>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div class="act-label">Activity Owner / On behalf of <span class="act-req">*</span></div>
+          <select id="act-owner" class="act-select">
+            <option value="">Select person…</option>
+            <option value="sb">Bennett, Sarah (me)</option>
+            <option value="rp">Patel, Rahul</option>
+            <option value="mt">Torres, Maria</option>
+            <option value="jk">Kim, James</option>
+            <option value="sn">Nguyen, Sophie</option>
+            <option value="es">Smith, Emily</option>
+            <option value="dl">Liu, David</option>
+          </select>
+          <div class="act-help">The person the Activity is being created for. Approval routing flows from their org.</div>
+        </div>
+
+        <div class="act-grid-2" style="margin-bottom:16px;">
+          <div>
+            <div class="act-label">Cost Center / Org</div>
+            <select id="act-cost-center" class="act-select">
+              <option value="">Select…</option>
+              <option>ORG-1001 — School of Medicine</option>
+              <option>ORG-1108 — Graduate School of Business</option>
+              <option>ORG-2206 — School of Engineering</option>
+              <option>ORG-3304 — School of Humanities</option>
+              <option>ORG-4422 — Office of the Provost</option>
+            </select>
+          </div>
+          <div>
+            <div class="act-label">Budget Estimate ($)</div>
+            <input type="number" id="act-budget" class="act-input" placeholder="0.00" step="0.01"/>
+          </div>
+        </div>
+
+        <div>
+          <div class="act-label">Justification / Internal Notes</div>
+          <textarea id="act-notes" class="act-input" rows="3" placeholder="Reason for this Activity, approval context, related grants, etc." style="resize:vertical;min-height:64px;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="step-nav">
+      <button type="button" class="btn-secondary" onclick="actReset()">Reset</button>
+      <button type="button" class="btn-primary" onclick="actNext()">
+        Next: Add Receipts
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="13" height="13"><polyline points="2 7 12 7"/><polyline points="8 3 12 7 8 11"/></svg>
+      </button>
+    </div>
+
+    <!-- Summary card (revealed when Next clicked — demo aid) -->
+    <div id="act-summary">
+      <h3>✓ Activity created</h3>
+      <div class="row"><div class="lbl">Name</div>          <div class="val" id="sum-name">—</div></div>
+      <div class="row"><div class="lbl">Payment Card</div>  <div class="val" id="sum-fund">—</div></div>
+      <div class="row"><div class="lbl">Date(s)</div>        <div class="val" id="sum-dates">—</div></div>
+      <div class="row"><div class="lbl">People</div>        <div class="val" id="sum-travelers">—</div></div>
+      <div class="row"><div class="lbl">PTA</div>           <div class="val" id="sum-pta">—</div></div>
+      <div class="row" id="sum-owner-row"><div class="lbl">Owner</div>      <div class="val" id="sum-owner">—</div></div>
+      <div class="row" id="sum-cc-row"><div class="lbl">Cost Center</div>  <div class="val" id="sum-cc">—</div></div>
+      <div class="row" id="sum-budget-row"><div class="lbl">Budget</div>    <div class="val" id="sum-budget">—</div></div>
+      <div class="row" id="sum-notes-row"><div class="lbl">Notes</div>      <div class="val" id="sum-notes">—</div></div>
+      <div class="act-help" style="margin-top:14px;">In the full prototype this hands off to <strong>Step 2: Add Receipts</strong>.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ── People directory (used by traveler picker) ──
+  const ACT_PEOPLE = [
+    { id:'sb', name:'Bennett, Sarah',  sunet:'sbennett',  dept:'Finance',           isMe:true },
+    { id:'rp', name:'Patel, Rahul',    sunet:'rpatel',    dept:'Engineering' },
+    { id:'mt', name:'Torres, Maria',   sunet:'mtorres',   dept:'Medicine' },
+    { id:'jk', name:'Kim, James',      sunet:'jkim',      dept:'GSB' },
+    { id:'sn', name:'Nguyen, Sophie',  sunet:'snguyen',   dept:'Humanities' },
+    { id:'es', name:'Smith, Emily',    sunet:'esmith',    dept:'Law' },
+    { id:'dl', name:'Liu, David',      sunet:'dliu',      dept:'Education' },
+    { id:'ao', name:'Okafor, Adaeze',  sunet:'aokafor',   dept:'Sponsored Research' },
+    { id:'jm', name:'Martinez, Jorge', sunet:'jmartinez', dept:'Provost Office' },
+  ];
+
+  // ── State ──
+  const initialTraveler = ACT_PEOPLE.find(p => p.isMe);
+  window.activityState = {
+    fundingSource: 'TCard',
+    dateMode:      'single', // 'single' | 'range'
+    travelers:     [{ id:initialTraveler.id, name:initialTraveler.name, sunet:initialTraveler.sunet, isMe:true }],
+  };
+
+  // ── Role source (Oracle Authority in production) ──
+  // In production, the server (or a wrapping page) will set body[data-role] based on
+  // the user's Oracle Authority profile (e.g. "traveler" or "admin"). For prototype
+  // previews, allow ?role=admin in the URL to render the Dept Admin variant.
+  function actApplyRoleFromOracle() {
+    let role = document.body.getAttribute('data-role') || 'traveler';
+    try {
+      const urlRole = new URLSearchParams(window.location.search).get('role');
+      if (urlRole === 'admin' || urlRole === 'traveler') role = urlRole;
+    } catch(e) {}
+    document.body.setAttribute('data-role', role);
+  }
+
+  // ── Payment-card chips ──
+  window.actSetFund = function(fund) {
+    window.activityState.fundingSource = fund;
+    document.querySelectorAll('#act-fund-chips .act-chip').forEach(b => {
+      const on = b.dataset.val === fund;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  };
+
+  // ══════════════════════════════════════════════════════════
+  // ══ Activity Date(s) v5 — calendar widget                  ══
+  // ══════════════════════════════════════════════════════════
+
+  // ── Date utility helpers ──
+  function calToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+  function calStartOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function calAddDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function calIso(d) {
+    if (!d) return '';
+    const m = String(d.getMonth() + 1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function calParse(s) {
+    if (!s) return null;
+    const [y,m,d] = s.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function calDaysBetween(a, b) {
+    return Math.round((b - a) / 86400000);
+  }
+  function calFmtLong(d) {
+    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  }
+  function calFmtShort(d) {
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+
+  // ── Date selection state ──
+  const calState = {
+    mode: 'single',          // 'single' | 'range'
+    start: null,             // Date or null
+    end:   null,             // Date or null (range mode only)
+    activePreset: null,
+  };
+
+  // ── Public: switch mode (preserve start date if possible) ──
+  window.actSetDateMode = function(mode) {
+    calState.mode = mode;
+    window.activityState.dateMode = mode;
+    document.querySelectorAll('.cal-mode-btn').forEach(b => {
+      const on = b.dataset.mode === mode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    // Toggle visibility + label of typing inputs to match mode
+    const startWrap = document.getElementById('cal-input-start-wrap');
+    const endWrap   = document.getElementById('cal-input-end-wrap');
+    const startLbl  = document.getElementById('cal-input-start-label');
+    if (mode === 'single') {
+      if (startLbl) startLbl.textContent = 'Date';
+      if (endWrap)  endWrap.style.display = 'none';
+      calState.end = null;
+    } else {
+      if (startLbl) startLbl.textContent = 'Start';
+      if (endWrap)  endWrap.style.display = '';
+    }
+    calSyncHiddenInputs();
+    calSyncTypingInputs();
+    calRenderPill();
+  };
+
+  // ── Public: typing-input change handler ──
+  // Called from <input type="date"> onchange in the cal-inputs row.
+  window.calOnInputChange = function(which) {
+    const startInp = document.getElementById('cal-input-start');
+    const endInp   = document.getElementById('cal-input-end');
+    const startVal = startInp ? startInp.value : '';
+    const endVal   = endInp   ? endInp.value   : '';
+    calState.activePreset = null;
+
+    if (calState.mode === 'single') {
+      calState.start = startVal ? calParse(startVal) : null;
+      calState.end = null;
+    } else {
+      calState.start = startVal ? calParse(startVal) : null;
+      calState.end   = endVal   ? calParse(endVal)   : null;
+      // Auto-correct ordering if user enters end < start
+      if (calState.start && calState.end && calState.end < calState.start) {
+        const tmp = calState.start;
+        calState.start = calState.end;
+        calState.end = tmp;
+      }
+    }
+    calSyncHiddenInputs();
+    calSyncTypingInputs();
+    calRenderPill();
+    calRenderPresets();
+  };
+
+  // ── Push current calState into the typing inputs ──
+  function calSyncTypingInputs() {
+    const startInp = document.getElementById('cal-input-start');
+    const endInp   = document.getElementById('cal-input-end');
+    if (startInp) startInp.value = calState.start ? calIso(calState.start) : '';
+    if (endInp)   endInp.value   = calState.end   ? calIso(calState.end)   : '';
+  }
+
+  // ── Public: clear selection ──
+  window.calClearSelection = function() {
+    calState.start = null;
+    calState.end = null;
+    calState.activePreset = null;
+    calSyncHiddenInputs();
+    calSyncTypingInputs();
+    calRenderPill();
+    calRenderPresets();
+  };
+
+  // ── Public: quick preset chips ──
+  window.calApplyPreset = function(kind) {
+    const today = calToday();
+    calState.activePreset = kind;
+    if (kind === 'today') {
+      actSetDateMode('single');
+      calState.start = today;
+      calState.end = null;
+    } else if (kind === 'tomorrow') {
+      actSetDateMode('single');
+      calState.start = calAddDays(today, 1);
+      calState.end = null;
+    } else if (kind === 'weekend') {
+      // Upcoming Saturday → Sunday (if today is Sat/Sun, use the same weekend)
+      const dow = today.getDay(); // 0 Sun … 6 Sat
+      let sat;
+      if (dow === 6) sat = today;
+      else if (dow === 0) sat = calAddDays(today, -1);
+      else sat = calAddDays(today, 6 - dow);
+      actSetDateMode('range');
+      calState.start = sat;
+      calState.end   = calAddDays(sat, 1);
+    } else if (kind === 'nextWeek') {
+      // Next Mon → Fri
+      const dow = today.getDay();
+      const daysToMon = (8 - dow) % 7 || 7;
+      const mon = calAddDays(today, daysToMon);
+      actSetDateMode('range');
+      calState.start = mon;
+      calState.end   = calAddDays(mon, 4);
+    } else if (kind === 'thisMonth') {
+      const first = calStartOfMonth(today);
+      const last  = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+      actSetDateMode('range');
+      calState.start = first;
+      calState.end   = last;
+    }
+    calSyncHiddenInputs();
+    calSyncTypingInputs();
+    calRenderPill();
+    calRenderPresets();
+  };
+
+  // ── Sync the visible state into the hidden inputs that the rest of the form reads ──
+  function calSyncHiddenInputs() {
+    const single = document.getElementById('act-date-single');
+    const start  = document.getElementById('act-date-start');
+    const end    = document.getElementById('act-date-end');
+    if (calState.mode === 'single') {
+      single.value = calState.start ? calIso(calState.start) : '';
+      start.value = '';
+      end.value   = '';
+    } else {
+      single.value = '';
+      start.value = calState.start ? calIso(calState.start) : '';
+      end.value   = calState.end   ? calIso(calState.end)   : '';
+    }
+  }
+
+  // ── Render the selection pill (the prominent summary at the top) ──
+  function calRenderPill() {
+    const pill = document.getElementById('cal-pill');
+    const pri  = document.getElementById('cal-pill-primary');
+    const sec  = document.getElementById('cal-pill-secondary');
+    if (!pill || !pri || !sec) return;
+    const s = calState.start, e = calState.end;
+    if (!s) {
+      pill.classList.add('empty');
+      pri.textContent = 'Select a date';
+      sec.textContent = 'Pick from a preset below, or click a day on the calendar';
+      return;
+    }
+    pill.classList.remove('empty');
+    if (calState.mode === 'single' || !e) {
+      pri.textContent = calFmtLong(s);
+      const diff = calDaysBetween(calToday(), s);
+      sec.textContent =
+        diff === 0  ? 'Today' :
+        diff === 1  ? 'Tomorrow' :
+        diff === -1 ? 'Yesterday' :
+        diff > 0    ? 'In ' + diff + ' day' + (diff===1?'':'s') :
+                      Math.abs(diff) + ' day' + (Math.abs(diff)===1?'':'s') + ' ago';
+    } else {
+      const nights = calDaysBetween(s, e);
+      pri.textContent = calFmtShort(s) + ' → ' + calFmtLong(e);
+      sec.textContent = (nights + 1) + ' day' + (nights+1===1?'':'s') +
+                        (nights >= 1 ? ' · ' + nights + ' night' + (nights===1?'':'s') : '');
+    }
+  }
+
+  // ── Highlight the active preset chip ──
+  function calRenderPresets() {
+    document.querySelectorAll('.cal-preset').forEach(c => c.classList.remove('active'));
+    if (!calState.activePreset) return;
+    const map = {
+      today:'Today',
+      tomorrow:'Tomorrow',
+      weekend:'This weekend',
+      nextWeek:'Next week',
+      thisMonth:'This month',
+    };
+    const wanted = map[calState.activePreset];
+    document.querySelectorAll('.cal-preset').forEach(c => {
+      if (c.textContent.trim() === wanted) c.classList.add('active');
+    });
+  }
+
+  // ── Travelers ──
+  function actRenderTravelers() {
+    const wrap = document.getElementById('act-travelers-list');
+    const btn  = document.getElementById('act-traveler-add-btn');
+    if (!wrap || !btn) return;
+    [...wrap.children].forEach(c => { if (c !== btn) c.remove(); });
+    window.activityState.travelers.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'act-traveler-chip';
+      const meTag = t.isMe ? ' <span style="font-weight:500;color:var(--su-mid-grey);font-size:10px;">(me)</span>' : '';
+      chip.innerHTML = t.name + meTag +
+        ' <button type="button" class="act-traveler-x" onclick="actRemoveTraveler(\'' + t.id + '\')" title="Remove">×</button>';
+      wrap.insertBefore(chip, btn);
+    });
+  }
+  window.actAddTraveler = function(id) {
+    const p = ACT_PEOPLE.find(x => x.id === id);
+    if (!p) return;
+    if (window.activityState.travelers.some(t => t.id === id)) return;
+    window.activityState.travelers.push({ id:p.id, name:p.name, sunet:p.sunet, isMe:!!p.isMe });
+    actRenderTravelers();
+    actCloseTravelerPicker();
+  };
+  window.actRemoveTraveler = function(id) {
+    window.activityState.travelers = window.activityState.travelers.filter(t => t.id !== id);
+    actRenderTravelers();
+  };
+  window.actOpenTravelerPicker = function() {
+    const p = document.getElementById('act-traveler-picker');
+    if (!p) return;
+    p.style.display = '';
+    const inp = document.getElementById('act-traveler-search');
+    if (inp) inp.value = '';
+    actFilterTravelers();
+    setTimeout(() => inp && inp.focus(), 50);
+  };
+  function actCloseTravelerPicker() {
+    const p = document.getElementById('act-traveler-picker');
+    if (p) p.style.display = 'none';
+  }
+  window.actFilterTravelers = function() {
+    const q = (document.getElementById('act-traveler-search')?.value || '').toLowerCase().trim();
+    const list = document.getElementById('act-traveler-options');
+    if (!list) return;
+    const taken = new Set(window.activityState.travelers.map(t => t.id));
+    const matches = ACT_PEOPLE.filter(p =>
+      !taken.has(p.id) && (!q || p.name.toLowerCase().includes(q) || p.sunet.toLowerCase().includes(q))
+    );
+    if (!matches.length) {
+      list.innerHTML = '<div style="padding:8px;color:var(--su-mid-grey);font-size:12px;">No matches.</div>';
+      return;
+    }
+    list.innerHTML = matches.map(p => {
+      const initials = p.name.split(', ').map(s => s[0]).join('').slice(0,2);
+      const meTag = p.isMe ? ' <span style="font-weight:500;color:var(--su-mid-grey);font-size:10px;">(me)</span>' : '';
+      return '<div onclick="actAddTraveler(\'' + p.id + '\')" ' +
+        'style="padding:8px 10px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s;" ' +
+        'onmouseover="this.style.background=\'#fdf0f0\'" onmouseout="this.style.background=\'\'">' +
+        '<span style="width:26px;height:26px;border-radius:50%;background:var(--cardinal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">' + initials + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:12.5px;font-weight:600;color:var(--su-black);">' + p.name + meTag + '</div>' +
+          '<div style="font-size:10.5px;color:var(--su-mid-grey);"><span style="font-family:monospace;">' + p.sunet + '</span> · ' + p.dept + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  };
+
+  // ── PTA split ──
+  window.actAddPta = function() {
+    const list = document.getElementById('act-pta-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'act-pta-row';
+    row.innerHTML =
+      '<input type="text" class="act-input act-pta-input" placeholder="e.g. 1233350-2-AAISR"/>' +
+      '<input type="number" class="act-input act-pta-pct" value="0" min="0" max="100" oninput="actUpdatePtaTotal()"/>' +
+      '<span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>' +
+      '<button type="button" class="act-pta-remove" onclick="actRemovePta(this)" title="Remove">×</button>';
+    list.appendChild(row);
+    actUpdatePtaTotal();
+  };
+  window.actRemovePta = function(btn) {
+    btn.closest('.act-pta-row').remove();
+    actUpdatePtaTotal();
+  };
+  window.actUpdatePtaTotal = function() {
+    const inputs = document.querySelectorAll('.act-pta-pct');
+    let total = 0;
+    inputs.forEach(i => total += parseFloat(i.value) || 0);
+    const msg = document.getElementById('act-pta-total-msg');
+    if (msg) {
+      msg.textContent = 'Total: ' + total + '%' + (total !== 100 ? ' — must equal 100% to proceed' : '');
+      msg.style.color = total === 100 ? 'var(--su-mid-grey)' : '#c62828';
+    }
+  };
+
+  // ── Summary card (demo Next action) ──
+  function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s + 'T00:00');
+    if (isNaN(d.getTime())) return s;
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+  function getPtaSummary() {
+    const rows = [...document.querySelectorAll('#act-pta-list .act-pta-row')];
+    if (!rows.length) return '—';
+    return rows.map(r => {
+      const code = r.querySelector('.act-pta-input').value.trim() || '(blank)';
+      const pct  = r.querySelector('.act-pta-pct').value || '0';
+      return code + ' · ' + pct + '%';
+    }).join(' · ');
+  }
+  window.actNext = function() {
+    const state = window.activityState;
+    const name = document.getElementById('act-name').value.trim() || '(unnamed)';
+    let dates = '—';
+    if (state.dateMode === 'single') {
+      dates = fmtDate(document.getElementById('act-date-single').value);
+    } else {
+      const s = fmtDate(document.getElementById('act-date-start').value);
+      const e = fmtDate(document.getElementById('act-date-end').value);
+      dates = (s === '—' && e === '—') ? '—' : s + ' → ' + e;
+    }
+    document.getElementById('sum-name').textContent  = name;
+    document.getElementById('sum-fund').textContent  = state.fundingSource;
+    document.getElementById('sum-dates').textContent = dates;
+    document.getElementById('sum-pta').textContent   = getPtaSummary();
+    document.getElementById('sum-travelers').textContent =
+      state.travelers.length ? state.travelers.map(t => t.name).join(' · ') : '—';
+
+    const isAdmin = document.body.dataset.role === 'admin';
+    ['sum-owner-row','sum-cc-row','sum-budget-row','sum-notes-row'].forEach(rid => {
+      document.getElementById(rid).style.display = isAdmin ? '' : 'none';
+    });
+    if (isAdmin) {
+      const ownerSel = document.getElementById('act-owner');
+      document.getElementById('sum-owner').textContent  = ownerSel.options[ownerSel.selectedIndex]?.text || '—';
+      document.getElementById('sum-cc').textContent     = document.getElementById('act-cost-center').value || '—';
+      const b = document.getElementById('act-budget').value;
+      document.getElementById('sum-budget').textContent = b ? '$' + parseFloat(b).toFixed(2) : '—';
+      document.getElementById('sum-notes').textContent  = document.getElementById('act-notes').value.trim() || '—';
+    }
+
+    const card = document.getElementById('act-summary');
+    card.style.display = '';
+    card.scrollIntoView({ behavior:'smooth', block:'start' });
+  };
+
+  window.actReset = function() {
+    document.getElementById('act-name').value = '';
+    document.getElementById('act-budget').value = '';
+    document.getElementById('act-notes').value = '';
+    document.getElementById('act-owner').value = '';
+    document.getElementById('act-cost-center').value = '';
+    // Reset chips + date mode + calendar selection
+    actSetFund('TCard');
+    actSetDateMode('single');
+    calClearSelection();
+    // Reset PTA to one row
+    document.getElementById('act-pta-list').innerHTML =
+      '<div class="act-pta-row">' +
+        '<input type="text" class="act-input act-pta-input" placeholder="e.g. 1139719-1-AABNP"/>' +
+        '<input type="number" class="act-input act-pta-pct" value="100" min="0" max="100" oninput="actUpdatePtaTotal()"/>' +
+        '<span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>' +
+      '</div>';
+    actUpdatePtaTotal();
+    // Reset travelers to just me
+    window.activityState.travelers = [{ id:initialTraveler.id, name:initialTraveler.name, sunet:initialTraveler.sunet, isMe:true }];
+    actRenderTravelers();
+    document.getElementById('act-summary').style.display = 'none';
+    window.scrollTo({ top:0, behavior:'smooth' });
+  };
+
+  // ── Toast helper ──
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--su-green);color:#fff;font-size:12px;font-weight:600;padding:9px 18px;border-radius:24px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;';
+    t.textContent = '✓ ' + msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.style.opacity = '1');
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 350); }, 2000);
+  }
+
+  // ── Close traveler picker on outside click ──
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#act-travelers-section')) actCloseTravelerPicker();
+  });
+
+  // ── Init ──
+  actApplyRoleFromOracle();
+  actRenderTravelers();
+  // First-paint the date controls
+  calSyncTypingInputs();
+  calRenderPill();
+})();
+</script>
+</body>
+</html>
