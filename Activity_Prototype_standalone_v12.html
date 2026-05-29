@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cardinal Expense — Activity Step (standalone)</title>
+<style>
+  /* ── Reset ── */
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
+
+  /* ── Stanford Cardinal palette (parity with v26) ── */
+  :root {
+    --cardinal:        #8C1515;
+    --cardinal-dark:   #820000;
+    --cardinal-light:  #F9EAEA;
+    --cardinal-border: #E8BFBF;
+    --su-black:        #2E2D29;
+    --su-dark-grey:    #4D4F53;
+    --su-mid-grey:     #767674;
+    --su-light-grey:   #D4D1CB;
+    --su-parchment:    #FAF7F2;
+    --su-sand:         #F4F0E8;
+    --su-blue:         #006CB8;
+    --su-blue-light:   #E6F0F8;
+    --su-green:        #007855;
+    --su-gold:         #B26F16;
+    --su-gold-light:   #FDF3E3;
+  }
+
+  html, body { height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--su-sand);
+    color:var(--su-black);
+    min-height:100vh;
+    padding:24px 16px 48px;
+  }
+
+  /* ── Page shell ── */
+  .page {
+    max-width:780px;
+    margin:0 auto;
+  }
+  .page-header {
+    background:var(--cardinal);
+    color:#fff;
+    border-radius:12px 12px 0 0;
+    padding:14px 22px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .page-header h1 {
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+  .page-header .sub {
+    font-size:11px;
+    font-weight:500;
+    opacity:.85;
+    margin-left:auto;
+  }
+  .page-body {
+    background:var(--su-parchment);
+    border:1px solid var(--su-light-grey);
+    border-top:none;
+    border-radius:0 0 12px 12px;
+    padding:20px 22px 28px;
+  }
+
+  /* ── Role-driven field visibility ──
+     In production, Oracle Authority sets body[data-role] (e.g. "traveler" or "admin").
+     The Dept Admin Details block is shown only when data-role="admin". */
+  body:not([data-role="admin"]) #act-admin-fields { display:none; }
+
+  /* ── Activity sections ── */
+  .act-section {
+    background:#fff;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:12px;
+    padding:18px 20px;
+    margin-bottom:14px;
+  }
+  .act-section-label {
+    font-size:11px;
+    font-weight:800;
+    color:var(--cardinal);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .act-section-label::before {
+    content:'';
+    width:4px;
+    height:14px;
+    background:var(--cardinal);
+    border-radius:2px;
+  }
+
+  /* Chips */
+  .act-chips {
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:4px;
+  }
+  .act-chip {
+    padding:8px 14px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:24px;
+    background:#fff;
+    font-size:13px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+  }
+  .act-chip:hover {
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+  }
+  .act-chip.active {
+    background:var(--cardinal-light);
+    border-color:var(--cardinal);
+    color:var(--cardinal);
+  }
+  .act-chip svg { flex-shrink:0; }
+
+  /* Labels + inputs */
+  .act-label {
+    font-size:11px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .act-req { color:#c62828; }
+  .act-input, .act-select {
+    width:100%;
+    padding:9px 12px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:8px;
+    background:var(--su-parchment);
+    color:var(--su-black);
+    font-size:13px;
+    font-family:inherit;
+    transition:border-color .15s,box-shadow .15s;
+    box-sizing:border-box;
+  }
+  .act-input:focus, .act-select:focus {
+    outline:none;
+    border-color:var(--cardinal);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(140,21,21,.07);
+  }
+  .act-grid-2 {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+
+  /* Traveler chips */
+  .act-traveler-chip {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 6px 5px 11px;
+    background:#fdf0f0;
+    border:1px solid var(--cardinal-border);
+    border-radius:18px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--cardinal);
+  }
+  .act-traveler-x {
+    background:none;
+    border:none;
+    color:var(--cardinal);
+    cursor:pointer;
+    padding:0 4px;
+    font-size:15px;
+    line-height:1;
+    font-family:inherit;
+  }
+  .act-traveler-add {
+    padding:5px 12px;
+    background:#fff;
+    border:1.5px dashed var(--cardinal);
+    border-radius:18px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--cardinal);
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .act-traveler-add:hover { background:#fdf0f0; }
+
+  /* PTA split rows */
+  .act-pta-row {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .act-pta-pct {
+    max-width:74px;
+    padding:9px 8px;
+    text-align:center;
+  }
+  .act-pta-remove {
+    background:none;
+    border:none;
+    color:var(--su-mid-grey);
+    cursor:pointer;
+    font-size:18px;
+    padding:4px 8px;
+    line-height:1;
+    font-family:inherit;
+  }
+  .act-pta-remove:hover { color:#c62828; }
+
+  .act-help {
+    font-size:11px;
+    color:var(--su-mid-grey);
+    margin-top:6px;
+    line-height:1.45;
+  }
+
+  /* Bottom step nav */
+  .step-nav {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:24px;
+    padding-top:18px;
+    border-top:1px solid #E8E6E0;
+  }
+  .btn-secondary {
+    padding:9px 18px;
+    background:#fff;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:9px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--su-dark-grey);
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+  }
+  .btn-secondary:hover {
+    background:var(--su-sand);
+    border-color:var(--su-mid-grey);
+  }
+  .btn-primary {
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:9px 22px;
+    background:var(--cardinal);
+    border:1.5px solid var(--cardinal);
+    border-radius:9px;
+    font-size:13px;
+    font-weight:700;
+    color:#fff;
+    cursor:pointer;
+    font-family:inherit;
+    transition:all .15s;
+  }
+  .btn-primary:hover { background:var(--cardinal-dark); }
+
+  /* Activity summary card (shown after Next) */
+  #act-summary {
+    display:none;
+    margin-top:16px;
+    background:#fff;
+    border:1.5px solid var(--cardinal-border);
+    border-radius:12px;
+    padding:18px 20px;
+  }
+  #act-summary h3 {
+    font-size:14px;
+    font-weight:700;
+    color:var(--cardinal);
+    margin-bottom:10px;
+  }
+  #act-summary .row {
+    display:grid;
+    grid-template-columns:140px 1fr;
+    gap:6px 14px;
+    padding:6px 0;
+    border-bottom:1px solid #F4F0E8;
+    font-size:12.5px;
+  }
+  #act-summary .row:last-child { border-bottom:none; }
+  #act-summary .lbl {
+    font-size:11px;
+    color:var(--su-mid-grey);
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  #act-summary .val { color:var(--su-black); }
+
+  /* ══════════════════════════════════════════════════════════ */
+  /* ══ Activity Date(s) v5 — selection pill + chips + calendar ══ */
+  /* ══════════════════════════════════════════════════════════ */
+
+  /* Selection pill — compact single-line (v9) */
+  .cal-pill {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    background:var(--cardinal-light);
+    border:1.5px solid var(--cardinal-border);
+    border-radius:8px;
+    margin-bottom:10px;
+    transition:all .2s;
+  }
+  .cal-pill-icon {
+    width:22px;
+    height:22px;
+    border-radius:6px;
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    color:var(--cardinal);
+  }
+  .cal-pill-content { flex:1; min-width:0; }
+  .cal-pill-primary {
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--su-black);
+    line-height:1.2;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .cal-pill-clear {
+    border:none;
+    background:transparent;
+    color:var(--cardinal);
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+    padding:3px 8px;
+    border-radius:5px;
+    transition:background .15s;
+  }
+  .cal-pill-clear:hover { background:rgba(140,21,21,.08); }
+
+  /* ── Inputs row (type) — type-first since v7 (calendar widget removed) ── */
+  .cal-inputs {
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .cal-input-group {
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    flex:1 1 130px;
+    min-width:130px;
+  }
+  .cal-input-label {
+    font-size:10px;
+    font-weight:700;
+    color:var(--su-mid-grey);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  .cal-input {
+    padding:7px 10px;
+    border:1.5px solid var(--su-light-grey);
+    border-radius:7px;
+    background:var(--su-parchment);
+    color:var(--su-black);
+    font-size:12.5px;
+    font-family:inherit;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .cal-input:focus {
+    outline:none;
+    border-color:var(--cardinal);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(140,21,21,.07);
+  }
+  .cal-input:invalid { border-color:#c62828; }
+
+</style>
+</head>
+<body data-role="traveler">
+
+<div class="page">
+
+  <div class="page-header">
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="2" y="3" width="14" height="13" rx="1.5"/><line x1="2" y1="7" x2="16" y2="7"/><line x1="6" y1="1.5" x2="6" y2="5"/><line x1="12" y1="1.5" x2="12" y2="5"/></svg>
+    <h1>Activity — New Expense Report</h1>
+    <span class="sub">Standalone preview · v1</span>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Note: in production Oracle Authority sets body[data-role]. For prototype previews,
+         append ?role=admin to the URL to see the Dept Admin variant of this form. -->
+
+    <!-- ① Activity Details (combined: Name + Description + Submit-to + Start Date) -->
+    <div class="act-section">
+      <div class="act-section-label">① Activity Details</div>
+
+      <!-- Activity Name -->
+      <div style="margin-bottom:18px;">
+        <div class="act-label">Activity Name <span class="act-req">*</span></div>
+        <input type="text" id="act-name" class="act-input" placeholder="e.g. OAUG Conference 2026"/>
+        <div class="act-help">Appears on the report and on every expense rolled up under this Activity.</div>
+      </div>
+
+      <!-- Subtle divider -->
+      <div style="height:1px;background:#F4F0E8;margin:0 -20px 18px;"></div>
+
+      <!-- Activity Description (v8) — used for AI Business Purpose generation later -->
+      <div style="margin-bottom:18px;">
+        <div class="act-label">
+          Activity Description
+          <span style="margin-left:6px;display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#7e22ce;background:#f3eaff;border:1px solid #d5b8f0;padding:1px 6px;border-radius:10px;text-transform:none;letter-spacing:0;">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="9" height="9"><path d="M6 1v2M6 9v2M1 6h2M9 6h2M2.5 2.5l1.4 1.4M8.1 8.1l1.4 1.4M2.5 9.5l1.4-1.4M8.1 3.9l1.4-1.4"/></svg>
+            Used by AI
+          </span>
+        </div>
+        <textarea id="act-description" class="act-input" rows="3" placeholder="e.g. Stanford School of Engineering faculty traveling to AERA 2026 to present research on AI-augmented education." style="resize:vertical;min-height:68px;"></textarea>
+        <div class="act-help">Reused later to draft the Business Purpose on every expense filed under this Activity — no need to retype it on each report.</div>
+      </div>
+
+      <!-- Subtle divider -->
+      <div style="height:1px;background:#F4F0E8;margin:0 -20px 18px;"></div>
+
+      <!-- Submit Activity to (v8) — multi-select destination -->
+      <div style="margin-bottom:18px;">
+        <div class="act-label">Submit Activity to <span class="act-req">*</span></div>
+        <div class="act-chips" id="act-submit-chips" role="group" aria-label="Submit Activity to (multi-select)">
+          <button type="button" class="act-chip active" data-val="ERS" onclick="actToggleSubmitTo('ERS')" aria-pressed="true">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="13" height="13"><rect x="3" y="1" width="8" height="12" rx="1"/><line x1="5" y1="4" x2="9" y2="4"/><line x1="5" y1="6.5" x2="9" y2="6.5"/><line x1="5" y1="9" x2="7" y2="9"/></svg>
+            ERS (Expense Report System)
+          </button>
+          <button type="button" class="act-chip" data-val="PCard" onclick="actToggleSubmitTo('PCard')" aria-pressed="false">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="13" height="13"><rect x="1" y="3" width="12" height="9" rx="1.5"/><circle cx="4" cy="9" r="1"/><line x1="7" y1="9" x2="11" y2="9"/></svg>
+            PCard System
+          </button>
+        </div>
+        <div class="act-help">Select <strong>one or both</strong>. ERS handles reimbursements and travel-card postings. PCard handles purchasing-card transactions. Use both if this Activity spans both systems.</div>
+      </div>
+
+      <!-- Subtle divider -->
+      <div style="height:1px;background:#F4F0E8;margin:0 -20px 18px;"></div>
+
+      <!-- Activity Start Date (single date only — v8) -->
+      <div>
+        <div class="act-label">Activity Start Date <span class="act-req">*</span></div>
+
+        <!-- Date input first — users type or use the native picker -->
+        <div class="cal-inputs">
+          <div class="cal-input-group">
+            <input type="date" class="cal-input" id="cal-input-start" onchange="calOnInputChange()" aria-label="Activity start date"/>
+          </div>
+        </div>
+
+        <!-- Confirmation pill — only rendered once a date is selected (v12) -->
+        <div class="cal-pill" id="cal-pill" style="display:none;margin-top:8px;margin-bottom:0;">
+          <div class="cal-pill-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="14" height="14"><rect x="2" y="3" width="12" height="11" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/></svg>
+          </div>
+          <div class="cal-pill-content">
+            <div class="cal-pill-primary" id="cal-pill-primary">—</div>
+          </div>
+          <button type="button" class="cal-pill-clear" id="cal-pill-clear" onclick="calClearSelection()">Clear</button>
+        </div>
+
+        <!-- Hidden input for downstream consumers -->
+        <input type="hidden" id="act-date-single"/>
+      </div>
+    </div>
+
+    <!-- ② People Involved -->
+    <div class="act-section" id="act-travelers-section">
+      <div class="act-section-label" id="act-travelers-title">② People Involved</div>
+      <div id="act-travelers-list" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;min-height:34px;">
+        <button type="button" class="act-traveler-add" id="act-traveler-add-btn" onclick="actOpenTravelerPicker()">+ Add person</button>
+      </div>
+      <div class="act-help">Anyone tagged here is <strong>auto-applied</strong> to every Expense Report filed under this Activity — no need to re-enter names later. The active user is added by default.</div>
+      <div id="act-traveler-picker" style="display:none;margin-top:12px;padding:12px;border:1.5px solid var(--su-light-grey);border-radius:10px;background:var(--su-parchment);">
+        <input type="text" class="act-input" id="act-traveler-search" placeholder="Search by name or SUNet…" oninput="actFilterTravelers()" style="margin-bottom:8px;"/>
+        <div id="act-traveler-options" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;"></div>
+      </div>
+    </div>
+
+    <!-- ④ Default PTA -->
+    <div class="act-section">
+      <div class="act-section-label">③ Default PTA <span style="margin-left:6px;font-weight:600;color:var(--su-mid-grey);font-size:10px;text-transform:none;letter-spacing:0;">(Project-Task-Award)</span></div>
+      <div id="act-pta-list">
+        <div class="act-pta-row">
+          <input type="text" class="act-input act-pta-input" placeholder="e.g. 1139719-1-AABNP"/>
+          <input type="number" class="act-input act-pta-pct" value="100" min="0" max="100" oninput="actUpdatePtaTotal()"/>
+          <span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>
+        </div>
+      </div>
+      <button type="button" onclick="actAddPta()" style="padding:7px 14px;background:#fff;border:1.5px solid var(--cardinal);color:var(--cardinal);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="11" height="11"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+        Add Another PTA
+      </button>
+      <div class="act-help" id="act-pta-total-msg">Total: 100%</div>
+    </div>
+
+    <!-- ⑤ Dept Admin extras -->
+    <div id="act-admin-fields">
+      <div class="act-section" style="background:#fbfafd;border-color:#cfd9ec;">
+        <div class="act-section-label" style="color:var(--su-blue);">④ Dept Admin Details
+          <span style="margin-left:6px;font-weight:600;color:var(--su-mid-grey);font-size:10px;text-transform:none;letter-spacing:0;">(visible to Dept Admins only)</span>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div class="act-label">Activity Owner / On behalf of <span class="act-req">*</span></div>
+          <select id="act-owner" class="act-select">
+            <option value="">Select person…</option>
+            <option value="sb">Bennett, Sarah (me)</option>
+            <option value="rp">Patel, Rahul</option>
+            <option value="mt">Torres, Maria</option>
+            <option value="jk">Kim, James</option>
+            <option value="sn">Nguyen, Sophie</option>
+            <option value="es">Smith, Emily</option>
+            <option value="dl">Liu, David</option>
+          </select>
+          <div class="act-help">The person the Activity is being created for. Approval routing flows from their org.</div>
+        </div>
+
+        <div class="act-grid-2" style="margin-bottom:16px;">
+          <div>
+            <div class="act-label">Cost Center / Org</div>
+            <select id="act-cost-center" class="act-select">
+              <option value="">Select…</option>
+              <option>ORG-1001 — School of Medicine</option>
+              <option>ORG-1108 — Graduate School of Business</option>
+              <option>ORG-2206 — School of Engineering</option>
+              <option>ORG-3304 — School of Humanities</option>
+              <option>ORG-4422 — Office of the Provost</option>
+            </select>
+          </div>
+          <div>
+            <div class="act-label">Budget Estimate ($)</div>
+            <input type="number" id="act-budget" class="act-input" placeholder="0.00" step="0.01"/>
+          </div>
+        </div>
+
+        <div>
+          <div class="act-label">Justification / Internal Notes</div>
+          <textarea id="act-notes" class="act-input" rows="3" placeholder="Reason for this Activity, approval context, related grants, etc." style="resize:vertical;min-height:64px;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="step-nav">
+      <button type="button" class="btn-secondary" onclick="actReset()">Reset</button>
+      <button type="button" class="btn-primary" onclick="actNext()">
+        Next: Add Receipts
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="13" height="13"><polyline points="2 7 12 7"/><polyline points="8 3 12 7 8 11"/></svg>
+      </button>
+    </div>
+
+    <!-- Summary card (revealed when Next clicked — demo aid) -->
+    <div id="act-summary">
+      <h3>✓ Activity created</h3>
+      <div class="row"><div class="lbl">Name</div>          <div class="val" id="sum-name">—</div></div>
+      <div class="row"><div class="lbl">Description</div>   <div class="val" id="sum-description">—</div></div>
+      <div class="row"><div class="lbl">Submit to</div>     <div class="val" id="sum-submit">—</div></div>
+      <div class="row"><div class="lbl">Start Date</div>    <div class="val" id="sum-dates">—</div></div>
+      <div class="row"><div class="lbl">People</div>        <div class="val" id="sum-travelers">—</div></div>
+      <div class="row"><div class="lbl">PTA</div>           <div class="val" id="sum-pta">—</div></div>
+      <div class="row" id="sum-owner-row"><div class="lbl">Owner</div>      <div class="val" id="sum-owner">—</div></div>
+      <div class="row" id="sum-cc-row"><div class="lbl">Cost Center</div>  <div class="val" id="sum-cc">—</div></div>
+      <div class="row" id="sum-budget-row"><div class="lbl">Budget</div>    <div class="val" id="sum-budget">—</div></div>
+      <div class="row" id="sum-notes-row"><div class="lbl">Notes</div>      <div class="val" id="sum-notes">—</div></div>
+      <div class="act-help" style="margin-top:14px;">In the full prototype this hands off to <strong>Step 2: Add Receipts</strong>.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ── People directory (used by traveler picker) ──
+  const ACT_PEOPLE = [
+    { id:'sb', name:'Bennett, Sarah',  sunet:'sbennett',  dept:'Finance',           isMe:true },
+    { id:'rp', name:'Patel, Rahul',    sunet:'rpatel',    dept:'Engineering' },
+    { id:'mt', name:'Torres, Maria',   sunet:'mtorres',   dept:'Medicine' },
+    { id:'jk', name:'Kim, James',      sunet:'jkim',      dept:'GSB' },
+    { id:'sn', name:'Nguyen, Sophie',  sunet:'snguyen',   dept:'Humanities' },
+    { id:'es', name:'Smith, Emily',    sunet:'esmith',    dept:'Law' },
+    { id:'dl', name:'Liu, David',      sunet:'dliu',      dept:'Education' },
+    { id:'ao', name:'Okafor, Adaeze',  sunet:'aokafor',   dept:'Sponsored Research' },
+    { id:'jm', name:'Martinez, Jorge', sunet:'jmartinez', dept:'Provost Office' },
+  ];
+
+  // ── State ──
+  const initialTraveler = ACT_PEOPLE.find(p => p.isMe);
+  window.activityState = {
+    description: '',
+    submitTo:    ['ERS'],   // v8: multi-select, default ERS
+    travelers:   [{ id:initialTraveler.id, name:initialTraveler.name, sunet:initialTraveler.sunet, isMe:true }],
+  };
+
+  // ── Role source (Oracle Authority in production) ──
+  // In production, the server (or a wrapping page) will set body[data-role] based on
+  // the user's Oracle Authority profile (e.g. "traveler" or "admin"). For prototype
+  // previews, allow ?role=admin in the URL to render the Dept Admin variant.
+  function actApplyRoleFromOracle() {
+    let role = document.body.getAttribute('data-role') || 'traveler';
+    try {
+      const urlRole = new URLSearchParams(window.location.search).get('role');
+      if (urlRole === 'admin' || urlRole === 'traveler') role = urlRole;
+    } catch(e) {}
+    document.body.setAttribute('data-role', role);
+  }
+
+  // ── Submit-to chips (v8) — multi-select toggle ──
+  window.actToggleSubmitTo = function(val) {
+    const idx = window.activityState.submitTo.indexOf(val);
+    if (idx >= 0) {
+      // Disallow deselecting the last remaining choice (must pick at least one)
+      if (window.activityState.submitTo.length === 1) return;
+      window.activityState.submitTo.splice(idx, 1);
+    } else {
+      window.activityState.submitTo.push(val);
+    }
+    document.querySelectorAll('#act-submit-chips .act-chip').forEach(b => {
+      const on = window.activityState.submitTo.includes(b.dataset.val);
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  };
+
+  // ══════════════════════════════════════════════════════════
+  // ══ Activity Date(s) v5 — calendar widget                  ══
+  // ══════════════════════════════════════════════════════════
+
+  // ── Date utility helpers ──
+  function calToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+  function calStartOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function calAddDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function calIso(d) {
+    if (!d) return '';
+    const m = String(d.getMonth() + 1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function calParse(s) {
+    if (!s) return null;
+    const [y,m,d] = s.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function calDaysBetween(a, b) {
+    return Math.round((b - a) / 86400000);
+  }
+  function calFmtLong(d) {
+    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  }
+  function calFmtShort(d) {
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  }
+
+  // ── Date selection state (v9 — single-date only, no presets) ──
+  const calState = {
+    start: null,             // Date or null
+  };
+
+  // ── Public: typing-input change handler ──
+  window.calOnInputChange = function() {
+    const startInp = document.getElementById('cal-input-start');
+    const startVal = startInp ? startInp.value : '';
+    calState.start = startVal ? calParse(startVal) : null;
+    calSyncHiddenInputs();
+    calRenderPill();
+  };
+
+  // ── Push current calState into the typing input ──
+  function calSyncTypingInputs() {
+    const startInp = document.getElementById('cal-input-start');
+    if (startInp) startInp.value = calState.start ? calIso(calState.start) : '';
+  }
+
+  // ── Public: clear selection ──
+  window.calClearSelection = function() {
+    calState.start = null;
+    calSyncHiddenInputs();
+    calSyncTypingInputs();
+    calRenderPill();
+  };
+
+  // ── Sync the visible state into the hidden input ──
+  function calSyncHiddenInputs() {
+    const single = document.getElementById('act-date-single');
+    if (single) single.value = calState.start ? calIso(calState.start) : '';
+  }
+
+  // ── Render the compact confirmation pill (only when a date is set) ──
+  function calRenderPill() {
+    const pill = document.getElementById('cal-pill');
+    const pri  = document.getElementById('cal-pill-primary');
+    if (!pill || !pri) return;
+    const s = calState.start;
+    if (!s) {
+      // No date — keep the pill hidden entirely (v12: empty-state removed)
+      pill.style.display = 'none';
+      return;
+    }
+    pill.style.display = '';
+    const diff = calDaysBetween(calToday(), s);
+    const rel =
+      diff === 0  ? 'Today' :
+      diff === 1  ? 'Tomorrow' :
+      diff === -1 ? 'Yesterday' :
+      diff > 0    ? 'In ' + diff + ' day' + (diff===1?'':'s') :
+                    Math.abs(diff) + ' day' + (Math.abs(diff)===1?'':'s') + ' ago';
+    pri.textContent = calFmtLong(s) + ' · ' + rel;
+  }
+
+  // ── Travelers ──
+  function actRenderTravelers() {
+    const wrap = document.getElementById('act-travelers-list');
+    const btn  = document.getElementById('act-traveler-add-btn');
+    if (!wrap || !btn) return;
+    [...wrap.children].forEach(c => { if (c !== btn) c.remove(); });
+    window.activityState.travelers.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'act-traveler-chip';
+      const meTag = t.isMe ? ' <span style="font-weight:500;color:var(--su-mid-grey);font-size:10px;">(me)</span>' : '';
+      chip.innerHTML = t.name + meTag +
+        ' <button type="button" class="act-traveler-x" onclick="actRemoveTraveler(\'' + t.id + '\')" title="Remove">×</button>';
+      wrap.insertBefore(chip, btn);
+    });
+  }
+  window.actAddTraveler = function(id) {
+    const p = ACT_PEOPLE.find(x => x.id === id);
+    if (!p) return;
+    if (window.activityState.travelers.some(t => t.id === id)) return;
+    window.activityState.travelers.push({ id:p.id, name:p.name, sunet:p.sunet, isMe:!!p.isMe });
+    actRenderTravelers();
+    actCloseTravelerPicker();
+  };
+  window.actRemoveTraveler = function(id) {
+    window.activityState.travelers = window.activityState.travelers.filter(t => t.id !== id);
+    actRenderTravelers();
+  };
+  window.actOpenTravelerPicker = function() {
+    const p = document.getElementById('act-traveler-picker');
+    if (!p) return;
+    p.style.display = '';
+    const inp = document.getElementById('act-traveler-search');
+    if (inp) inp.value = '';
+    actFilterTravelers();
+    setTimeout(() => inp && inp.focus(), 50);
+  };
+  function actCloseTravelerPicker() {
+    const p = document.getElementById('act-traveler-picker');
+    if (p) p.style.display = 'none';
+  }
+  window.actFilterTravelers = function() {
+    const q = (document.getElementById('act-traveler-search')?.value || '').toLowerCase().trim();
+    const list = document.getElementById('act-traveler-options');
+    if (!list) return;
+    const taken = new Set(window.activityState.travelers.map(t => t.id));
+    const matches = ACT_PEOPLE.filter(p =>
+      !taken.has(p.id) && (!q || p.name.toLowerCase().includes(q) || p.sunet.toLowerCase().includes(q))
+    );
+    if (!matches.length) {
+      list.innerHTML = '<div style="padding:8px;color:var(--su-mid-grey);font-size:12px;">No matches.</div>';
+      return;
+    }
+    list.innerHTML = matches.map(p => {
+      const initials = p.name.split(', ').map(s => s[0]).join('').slice(0,2);
+      const meTag = p.isMe ? ' <span style="font-weight:500;color:var(--su-mid-grey);font-size:10px;">(me)</span>' : '';
+      return '<div onclick="actAddTraveler(\'' + p.id + '\')" ' +
+        'style="padding:8px 10px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s;" ' +
+        'onmouseover="this.style.background=\'#fdf0f0\'" onmouseout="this.style.background=\'\'">' +
+        '<span style="width:26px;height:26px;border-radius:50%;background:var(--cardinal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">' + initials + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:12.5px;font-weight:600;color:var(--su-black);">' + p.name + meTag + '</div>' +
+          '<div style="font-size:10.5px;color:var(--su-mid-grey);"><span style="font-family:monospace;">' + p.sunet + '</span> · ' + p.dept + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  };
+
+  // ── PTA split ──
+  // Distribute 100% evenly across all rows. Use Math.floor for the first n-1 rows
+  // and put the remainder on the last row so the total is exactly 100.
+  function actRebalancePtaPercents() {
+    const pctInputs = document.querySelectorAll('.act-pta-pct');
+    const n = pctInputs.length;
+    if (n === 0) return;
+    const base = Math.floor(100 / n);
+    const remainder = 100 - base * (n - 1);
+    pctInputs.forEach((inp, i) => {
+      inp.value = (i === n - 1) ? remainder : base;
+    });
+  }
+
+  window.actAddPta = function() {
+    const list = document.getElementById('act-pta-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'act-pta-row';
+    row.innerHTML =
+      '<input type="text" class="act-input act-pta-input" placeholder="e.g. 1233350-2-AAISR"/>' +
+      '<input type="number" class="act-input act-pta-pct" value="0" min="0" max="100" oninput="actUpdatePtaTotal()"/>' +
+      '<span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>' +
+      '<button type="button" class="act-pta-remove" onclick="actRemovePta(this)" title="Remove">×</button>';
+    list.appendChild(row);
+    // Auto-rebalance percentages across all rows (e.g. 100 → 50/50 → 33/33/34 → 25/25/25/25)
+    actRebalancePtaPercents();
+    actUpdatePtaTotal();
+  };
+  window.actRemovePta = function(btn) {
+    btn.closest('.act-pta-row').remove();
+    // Re-balance the remaining rows back to an even split so the total is valid again
+    actRebalancePtaPercents();
+    actUpdatePtaTotal();
+  };
+  window.actUpdatePtaTotal = function() {
+    const inputs = document.querySelectorAll('.act-pta-pct');
+    let total = 0;
+    inputs.forEach(i => total += parseFloat(i.value) || 0);
+    const msg = document.getElementById('act-pta-total-msg');
+    if (msg) {
+      msg.textContent = 'Total: ' + total + '%' + (total !== 100 ? ' — must equal 100% to proceed' : '');
+      msg.style.color = total === 100 ? 'var(--su-mid-grey)' : '#c62828';
+    }
+  };
+
+  // ── Summary card (demo Next action) ──
+  function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s + 'T00:00');
+    if (isNaN(d.getTime())) return s;
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+  function getPtaSummary() {
+    const rows = [...document.querySelectorAll('#act-pta-list .act-pta-row')];
+    if (!rows.length) return '—';
+    return rows.map(r => {
+      const code = r.querySelector('.act-pta-input').value.trim() || '(blank)';
+      const pct  = r.querySelector('.act-pta-pct').value || '0';
+      return code + ' · ' + pct + '%';
+    }).join(' · ');
+  }
+  window.actNext = function() {
+    const state = window.activityState;
+    const name  = document.getElementById('act-name').value.trim() || '(unnamed)';
+    const desc  = document.getElementById('act-description').value.trim();
+    const dates = fmtDate(document.getElementById('act-date-single').value);
+    // Friendly labels for the submit destinations
+    const SUBMIT_LABELS = { ERS: 'ERS (Expense Report System)', PCard: 'PCard System' };
+    const submitTxt = (state.submitTo && state.submitTo.length)
+      ? state.submitTo.map(v => SUBMIT_LABELS[v] || v).join(' + ')
+      : '—';
+
+    document.getElementById('sum-name').textContent        = name;
+    document.getElementById('sum-description').textContent = desc || '(none — will be drafted by AI from other fields)';
+    document.getElementById('sum-submit').textContent      = submitTxt;
+    document.getElementById('sum-dates').textContent       = dates;
+    document.getElementById('sum-pta').textContent         = getPtaSummary();
+    document.getElementById('sum-travelers').textContent =
+      state.travelers.length ? state.travelers.map(t => t.name).join(' · ') : '—';
+
+    const isAdmin = document.body.dataset.role === 'admin';
+    ['sum-owner-row','sum-cc-row','sum-budget-row','sum-notes-row'].forEach(rid => {
+      document.getElementById(rid).style.display = isAdmin ? '' : 'none';
+    });
+    if (isAdmin) {
+      const ownerSel = document.getElementById('act-owner');
+      document.getElementById('sum-owner').textContent  = ownerSel.options[ownerSel.selectedIndex]?.text || '—';
+      document.getElementById('sum-cc').textContent     = document.getElementById('act-cost-center').value || '—';
+      const b = document.getElementById('act-budget').value;
+      document.getElementById('sum-budget').textContent = b ? '$' + parseFloat(b).toFixed(2) : '—';
+      document.getElementById('sum-notes').textContent  = document.getElementById('act-notes').value.trim() || '—';
+    }
+
+    const card = document.getElementById('act-summary');
+    card.style.display = '';
+    card.scrollIntoView({ behavior:'smooth', block:'start' });
+  };
+
+  window.actReset = function() {
+    document.getElementById('act-name').value = '';
+    document.getElementById('act-description').value = '';
+    document.getElementById('act-budget').value = '';
+    document.getElementById('act-notes').value = '';
+    document.getElementById('act-owner').value = '';
+    document.getElementById('act-cost-center').value = '';
+    // Reset Submit-to to ERS only
+    window.activityState.submitTo = ['ERS'];
+    document.querySelectorAll('#act-submit-chips .act-chip').forEach(b => {
+      const on = b.dataset.val === 'ERS';
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    // Reset date selection
+    calClearSelection();
+    // Reset PTA to one row
+    document.getElementById('act-pta-list').innerHTML =
+      '<div class="act-pta-row">' +
+        '<input type="text" class="act-input act-pta-input" placeholder="e.g. 1139719-1-AABNP"/>' +
+        '<input type="number" class="act-input act-pta-pct" value="100" min="0" max="100" oninput="actUpdatePtaTotal()"/>' +
+        '<span style="font-size:12px;color:var(--su-mid-grey);font-weight:600;">%</span>' +
+      '</div>';
+    actUpdatePtaTotal();
+    // Reset travelers to just me
+    window.activityState.travelers = [{ id:initialTraveler.id, name:initialTraveler.name, sunet:initialTraveler.sunet, isMe:true }];
+    actRenderTravelers();
+    document.getElementById('act-summary').style.display = 'none';
+    window.scrollTo({ top:0, behavior:'smooth' });
+  };
+
+  // ── Toast helper ──
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--su-green);color:#fff;font-size:12px;font-weight:600;padding:9px 18px;border-radius:24px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;';
+    t.textContent = '✓ ' + msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.style.opacity = '1');
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 350); }, 2000);
+  }
+
+  // ── Close traveler picker on outside click ──
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#act-travelers-section')) actCloseTravelerPicker();
+  });
+
+  // ── Init ──
+  actApplyRoleFromOracle();
+  actRenderTravelers();
+  // First-paint the date controls
+  calSyncTypingInputs();
+  calRenderPill();
+})();
+</script>
+</body>
+</html>
